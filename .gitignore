@@ -1,0 +1,14 @@
+# IntelliJ #
+
+.idea/
+*.iml
+
+/out/
+target/
+*.class
+
+# Package Files #
+
+*.jar
+*.war
+*.ear
