@@ -19,6 +19,8 @@
         <mysql.version>8.0.13</mysql.version>
         <junit.version>4.12</junit.version>
         <lombok.version>1.16.20</lombok.version>
+        <telegramBot.version>4.1</telegramBot.version>
+
     </properties>
 
     <dependencies>
@@ -43,6 +45,13 @@
             <version>${lombok.version}</version>
             <scope>provided</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.telegram</groupId>
+            <artifactId>telegrambots</artifactId>
+            <version>${telegramBot.version}</version>
+        </dependency>
+
 
         <dependency>
             <groupId>junit</groupId>
