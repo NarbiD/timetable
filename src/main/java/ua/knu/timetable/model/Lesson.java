@@ -19,29 +19,61 @@ public class Lesson {
     private Long id;
 
     @Enumerated(value = EnumType.STRING)
-    Day day;
+    private Day day;
 
     @ManyToOne
     @JoinColumn(name = "department_id")
-    Department department;
+    private Department department;
 
     @ManyToOne
     @JoinColumn(name = "subject_id")
-    Subject subject;
+    private Subject subject;
 
     @ManyToOne
     @JoinColumn(name = "audience_id")
-    Audience audience;
+    private Audience audience;
 
     @ManyToOne
     @JoinColumn(name = "teacher_id")
-    Teacher teacher;
+    private Teacher teacher;
 
     @ManyToOne
     @JoinColumn(name = "group_id")
-    Group group;
+    private Group group;
 
     @ManyToOne
     @JoinColumn(name = "class_time_id")
-    ClassTime classTime;
+    private ClassTime classTime;
+
+    public Long getId() {
+        return id;
+    }
+
+    public Day getDay() {
+        return day;
+    }
+
+    public Department getDepartment() {
+        return department;
+    }
+
+    public Subject getSubject() {
+        return subject;
+    }
+
+    public Audience getAudience() {
+        return audience;
+    }
+
+    public Teacher getTeacher() {
+        return teacher;
+    }
+
+    public Group getGroup() {
+        return group;
+    }
+
+    public ClassTime getClassTime() {
+        return classTime;
+    }
 }

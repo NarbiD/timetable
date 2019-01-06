@@ -18,7 +18,17 @@ public class Group {
 
     private String name;
 
+    public String getName() {
+        return name;
+    }
+
+    public Group(String name, Department department) {
+        this.name = name;
+        this.department = department;
+    }
+
     @ManyToOne
     @JoinColumn(name = "department_id")
-    Department department;
+    private Department department;
+
 }

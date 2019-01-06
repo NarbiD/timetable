@@ -16,7 +16,12 @@ public class Subject {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    String name;
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
 
     @ManyToOne
     @JoinColumn(name = "department_id")

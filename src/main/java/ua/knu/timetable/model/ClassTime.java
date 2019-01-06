@@ -20,7 +20,20 @@ public class ClassTime {
     @JoinColumn(name = "department_id")
     Department department;
 
-    int lessonNumber;
-    String startTime;
-    String endTime;
+    private int lessonNumber;
+    private String startTime;
+    private String endTime;
+
+    public int getLessonNumber() {
+        return lessonNumber;
+    }
+
+    public String getStartTime() {
+        return startTime;
+    }
+
+    public String getEndTime() {
+        return endTime;
+    }
+
 }
