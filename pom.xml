@@ -48,10 +48,9 @@
 
         <dependency>
             <groupId>org.telegram</groupId>
-            <artifactId>telegrambots</artifactId>
+            <artifactId>telegrambots-chat-session-bot</artifactId>
             <version>${telegramBot.version}</version>
         </dependency>
-
 
         <dependency>
             <groupId>junit</groupId>

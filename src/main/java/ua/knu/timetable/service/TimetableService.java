@@ -13,14 +13,27 @@ import java.util.List;
 public class TimetableService {
 
     final private LessonRepository lessonRepository;
+    final private DepartmentService departmentService;
+    final private GroupService groupService;
 
     @Autowired
-    public TimetableService(LessonRepository lessonRepository) {
+    public TimetableService(LessonRepository lessonRepository, DepartmentService departmentService, GroupService groupService) {
         this.lessonRepository = lessonRepository;
+        this.departmentService = departmentService;
+        this.groupService = groupService;
     }
 
-    public List<Lesson> findLessonByDepartmentAndGroup(Department department, Group group) {
+    public List<Department> findAllDepartments() {
+        return departmentService.findAll();
+    }
+
+    public List<Lesson> findLessonByDepartmentAndGroup(String departmentName, String groupName) {
+        Department department = departmentService.getDepartmentByName(departmentName);
+        Group group = groupService.getGroupByDepartmentAndName(department, groupName);
         return lessonRepository.findLessonsByDepartmentAndGroup(department, group);
     }
 
+    public List<Group> findGroupsByDepartmentName(String departmentName) {
+        return groupService.findAllByDepartmentName(departmentName);
+    }
 }

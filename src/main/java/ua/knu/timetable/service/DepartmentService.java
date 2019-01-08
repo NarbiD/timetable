@@ -5,6 +5,8 @@ import org.springframework.stereotype.Service;
 import ua.knu.timetable.model.Department;
 import ua.knu.timetable.repository.DepartmentRepository;
 
+import java.util.List;
+
 @Service
 public class DepartmentService {
 
@@ -17,6 +19,10 @@ public class DepartmentService {
 
     public Department getDepartmentByName(String name) {
         return departmentRepository.getDepartmentByName(name);
+    }
+
+    public List<Department> findAll() {
+        return departmentRepository.findAll();
     }
 
 }

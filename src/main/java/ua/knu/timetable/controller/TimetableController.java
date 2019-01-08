@@ -19,24 +19,17 @@ import java.util.List;
 @RestController
 @RequestMapping("/timetable")
 public class TimetableController {
-
     final private TimetableService timetableService;
-    final private DepartmentService departmentService;
-    final private GroupService groupService;
 
     @Autowired
     public TimetableController(TimetableService timetableService, DepartmentService departmentService, GroupService groupService) {
         this.timetableService = timetableService;
-        this.departmentService = departmentService;
-        this.groupService = groupService;
     }
 
     @RequestMapping(value = "/{departmentName}/{groupName}", method = RequestMethod.GET)
-    public List<LessonDto> getLessonsByGroup(@PathVariable String departmentName, @PathVariable String groupName) {
-        Department department = departmentService.getDepartmentByName(departmentName);
-        Group group = groupService.getGroupByDepartmentAndName(department, groupName);
+    public List<LessonDto> getLessonsByDepartmentAndGroup(@PathVariable String departmentName, @PathVariable String groupName) {
         List<LessonDto> lessonDtos = new ArrayList<>();
-        List<Lesson> lessons = timetableService.findLessonByDepartmentAndGroup(department, group);
+        List<Lesson> lessons = timetableService.findLessonByDepartmentAndGroup(departmentName, groupName);
         for (Lesson lesson : lessons) {
             lessonDtos.add(new LessonDto(lesson));
         }
