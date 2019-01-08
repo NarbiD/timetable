@@ -21,6 +21,10 @@ import java.io.IOException;
 import java.util.*;
 
 public class TelegramBot extends TelegramLongPollingSessionBot implements messengerBot  {
+    private final String DEPARTMENT_ATTRIBUTE = "department";
+    private final String IS_GROUP_SHOWED_ATTRIBUTE = "isGroupMenuShowed";
+    private final String CALLBACK_PREFIX_DEPARTMENT_CHOOSE = "departmentChoose:";
+
     private Properties properties;
     private TimetableService timetableService;
 
@@ -32,8 +36,9 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
 
     private void loadProperties() throws IOException {
         final String absolutePath = new File("").getAbsolutePath();
+        final String pathToProperties = "/src/main/resources/telegramBot.properties";
         properties = new Properties();
-        properties.load(new FileReader(new File(absolutePath + "/src/main/resources/telegramBot.properties")));
+        properties.load(new FileReader(new File(absolutePath + pathToProperties)));
     }
 
     @Override
@@ -46,37 +51,31 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
                 addDepartmentChoosingMenu(message);
             }
             session.ifPresent(s -> {
-                        if (s.getAttribute("department") != null && session.get().getAttribute("isGroupMenuShowed") != null) {
-                                message.setText(timetableService.findLessonByDepartmentAndGroup(
-                                        s.getAttribute("department").toString(), inputText).get(0).getSubject().getName());
+                        if (s.getAttribute(DEPARTMENT_ATTRIBUTE) != null && session.get().getAttribute(IS_GROUP_SHOWED_ATTRIBUTE) != null) {
+                            //TODO show available days
                         }
                     });
             sendMessage(message, update.getMessage().getChatId());
         } else if (update.hasCallbackQuery()) {
             String callbackQuery = update.getCallbackQuery().getData();
             String[] queryAndAnswer = callbackQuery.split(":");
-            String query = queryAndAnswer[0];
-            String answer = queryAndAnswer[1];
-            switch (query) {
-                case "departmentChoose":
-                    session.ifPresent(s -> s.setAttribute("department", answer));
-                    SendMessage message = new SendMessage();
-                    message.setText("Обрано " + answer +
-                            ".\n Тепер оберіть групу.");
-                    session.ifPresent(s -> {
-                        addGroupChoosingMenu(message, s.getAttribute("department").toString());
-                        s.setAttribute("isGroupMenuShowed", true);
-                    });
-                sendMessage(message, update.getCallbackQuery().getMessage().getChatId());
+            String req = queryAndAnswer[0];
+            String resp = queryAndAnswer[1];
+            switch (req) {
+                case CALLBACK_PREFIX_DEPARTMENT_CHOOSE:
+                    session.ifPresent(s ->
+                            callbackDepartmentChoose(resp, update.getCallbackQuery().getMessage().getChatId(), s));
+                    break;
             }
         }
     }
 
     private void start(Session session, Long chatId) {
-        removeSessionCashe(session);
+        removeSessionCache(session);
         SendMessage message = new SendMessage();
-        String outputText = session.getAttribute("department") == null ? "Вас вітає бот, що допоможе вам знайти розклад." :
-                "Вибір скасовано.";
+        String WELCOME = "Вас вітає бот, що допоможе вам знайти розклад.";
+        String CHOOSES_CANCELED = "Вибір скасовано.";
+        String outputText = session.getAttribute(DEPARTMENT_ATTRIBUTE) == null ? WELCOME : CHOOSES_CANCELED;
         message.setText(outputText);
         message.setReplyMarkup(new ReplyKeyboardRemove());
         sendMessage(message, chatId);
@@ -91,7 +90,7 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
         }
     }
 
-    private void removeSessionCashe(Session session) {
+    private void removeSessionCache(Session session) {
         session.getAttributeKeys().forEach(session::removeAttribute);
     }
 
@@ -102,7 +101,7 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
             departmentNames.add(department.getName());
         }
         message.setText("Оберіть факультет:");
-        message.setReplyMarkup(makeInlineKeyboard(departmentNames, "departmentChoose:"));
+        message.setReplyMarkup(makeInlineKeyboard(departmentNames, CALLBACK_PREFIX_DEPARTMENT_CHOOSE));
     }
 
     private void addGroupChoosingMenu(SendMessage message, String departmentName) {
@@ -137,6 +136,16 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
                     .setCallbackData(callbackPrefix + name)));
         }
         return new InlineKeyboardMarkup().setKeyboard(buttons);
+    }
+
+    private void callbackDepartmentChoose(String departmentName, Long chatId, Session session) {
+        session.setAttribute(DEPARTMENT_ATTRIBUTE, departmentName);
+        SendMessage message = new SendMessage();
+        message.setText("Обрано " + departmentName +
+                ".\n Тепер оберіть групу.");
+        addGroupChoosingMenu(message, session.getAttribute(DEPARTMENT_ATTRIBUTE).toString());
+        session.setAttribute(IS_GROUP_SHOWED_ATTRIBUTE, true);
+        sendMessage(message, chatId);
     }
 
     @Override
