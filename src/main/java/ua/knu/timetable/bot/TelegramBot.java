@@ -11,8 +11,10 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import ua.knu.timetable.model.Day;
 import ua.knu.timetable.model.Department;
 import ua.knu.timetable.model.Group;
+import ua.knu.timetable.model.Lesson;
 import ua.knu.timetable.service.TimetableService;
 
 import java.io.File;
@@ -23,7 +25,9 @@ import java.util.*;
 public class TelegramBot extends TelegramLongPollingSessionBot implements messengerBot  {
     private final String DEPARTMENT_ATTRIBUTE = "department";
     private final String IS_GROUP_SHOWED_ATTRIBUTE = "isGroupMenuShowed";
-    private final String CALLBACK_PREFIX_DEPARTMENT_CHOOSE = "departmentChoose:";
+    private final String CALLBACK_PREFIX_DEPARTMENT_CHOOSE = "departmentChoose";
+    private final String CALLBACK_PREFIX_DAY_CHOOSE = "dayChoose";
+
 
     private Properties properties;
     private TimetableService timetableService;
@@ -52,7 +56,8 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
             }
             session.ifPresent(s -> {
                         if (s.getAttribute(DEPARTMENT_ATTRIBUTE) != null && session.get().getAttribute(IS_GROUP_SHOWED_ATTRIBUTE) != null) {
-                            //TODO show available days
+                            s.setAttribute("group", inputText);
+                            addDayChoosingMenu(message, inputText, s);
                         }
                     });
             sendMessage(message, update.getMessage().getChatId());
@@ -65,6 +70,10 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
                 case CALLBACK_PREFIX_DEPARTMENT_CHOOSE:
                     session.ifPresent(s ->
                             callbackDepartmentChoose(resp, update.getCallbackQuery().getMessage().getChatId(), s));
+                    break;
+                case CALLBACK_PREFIX_DAY_CHOOSE:
+                    session.ifPresent(s ->
+                            callbackDayChoose(resp, update.getCallbackQuery().getMessage().getChatId(), s));
                     break;
             }
         }
@@ -91,7 +100,9 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
     }
 
     private void removeSessionCache(Session session) {
-        session.getAttributeKeys().forEach(session::removeAttribute);
+        ArrayList<String> keys = new ArrayList<>();
+        session.getAttributeKeys().forEach(k->keys.add(k.toString()));
+        keys.forEach(session::removeAttribute);
     }
 
     private void addDepartmentChoosingMenu(SendMessage message) {
@@ -101,7 +112,19 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
             departmentNames.add(department.getName());
         }
         message.setText("Оберіть факультет:");
-        message.setReplyMarkup(makeInlineKeyboard(departmentNames, CALLBACK_PREFIX_DEPARTMENT_CHOOSE));
+        message.setReplyMarkup(makeInlineKeyboard(departmentNames, CALLBACK_PREFIX_DEPARTMENT_CHOOSE + ":"));
+    }
+
+    private void addDayChoosingMenu(SendMessage message, String groupName, Session session) {
+        Set<Day> daysWithLessons = new TreeSet<>();
+        timetableService.findLessonByDepartmentAndGroup(session.getAttribute("department").toString(),
+                session.getAttribute("group").toString()).forEach(l-> daysWithLessons.add(l.getDay()));
+        message.setText("Обрано групу " + groupName +".\nОберіть день:");
+        List<String> listOfDayWithLessons = new ArrayList<>(daysWithLessons.size());
+        for (Day day : daysWithLessons) {
+            listOfDayWithLessons.add(day.toString());
+        }
+        message.setReplyMarkup(makeInlineKeyboard(listOfDayWithLessons, CALLBACK_PREFIX_DAY_CHOOSE + ":"));
     }
 
     private void addGroupChoosingMenu(SendMessage message, String departmentName) {
@@ -140,12 +163,39 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
 
     private void callbackDepartmentChoose(String departmentName, Long chatId, Session session) {
         session.setAttribute(DEPARTMENT_ATTRIBUTE, departmentName);
+        session.setTimeout(48*3600L);
         SendMessage message = new SendMessage();
         message.setText("Обрано " + departmentName +
                 ".\n Тепер оберіть групу.");
         addGroupChoosingMenu(message, session.getAttribute(DEPARTMENT_ATTRIBUTE).toString());
         session.setAttribute(IS_GROUP_SHOWED_ATTRIBUTE, true);
         sendMessage(message, chatId);
+    }
+
+    private void callbackDayChoose(String dayName, Long chatId, Session session) {
+        SendMessage message = new SendMessage();
+        if (session.getAttribute("group") != null) {
+            message.setText(format(timetableService.findLessonByDepartmentAndGroupAndDay(session.getAttribute(DEPARTMENT_ATTRIBUTE).toString(),
+                    session.getAttribute("group").toString(), dayName)));
+        } else {
+            message.setText("Вибір групи було скасовано. Спробуйте знову, спочату обравши факультет та групу.");
+        }
+        sendMessage(message, chatId);
+    }
+
+    private String format(List<Lesson> lessons) {
+        StringBuilder timetable = new StringBuilder();
+        if (!lessons.isEmpty()) {
+            timetable.append("\t").append(lessons.get(0).getDay()).append("\n");
+        }
+        lessons.sort(Comparator.comparingInt(l -> l.getClassTime().getLessonNumber()));
+        for (Lesson lesson : lessons) {
+            timetable.append(lesson.getClassTime().getLessonNumber()).append(". ")
+                    .append(lesson.getSubject().getName())
+                    .append("\n Ауд. ").append(lesson.getAudience().getName()).append(", ")
+                    .append(lesson.getTeacher().getName()).append("\n");
+        }
+        return timetable.toString();
     }
 
     @Override
