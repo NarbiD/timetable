@@ -1,15 +1,11 @@
 package ua.knu.timetable.bot;
 
 import org.apache.shiro.session.Session;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.session.TelegramLongPollingSessionBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ua.knu.timetable.model.Day;
 import ua.knu.timetable.model.Department;
@@ -22,14 +18,24 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 
+import static ua.knu.timetable.bot.TelegramBot.OutputMessage.*;
+
 public class TelegramBot extends TelegramLongPollingSessionBot implements messengerBot  {
     private final String DEPARTMENT_ATTRIBUTE = "department";
     private final String IS_GROUP_SHOWED_ATTRIBUTE = "isGroupMenuShowed";
-    private final String CALLBACK_PREFIX_DEPARTMENT_CHOOSE = "departmentChoose";
     private final String CALLBACK_PREFIX_DAY_CHOOSE = "dayChoose";
 
+    enum OutputMessage {
+        WELCOME, SELECT_GROUP, SELECT_DEPARTMENT, SELECT_DAY, SELECTED, CHOICE_CANCELED
+    }
 
-    private Properties properties;
+    private Map<OutputMessage, String> outputMessages;
+
+    private Properties botProperties;
+    private Properties langProperties;
+
+    private MenuMaker<ReplyKeyboard> menuMaker = new TelegramBotMenuMaker();
+    private OutputFormatter outputFormatter = new OutputFormatter();
     private TimetableService timetableService;
 
     public TelegramBot(TimetableService timetableService) throws IOException {
@@ -40,9 +46,19 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
 
     private void loadProperties() throws IOException {
         final String absolutePath = new File("").getAbsolutePath();
-        final String pathToProperties = "/src/main/resources/telegramBot.properties";
-        properties = new Properties();
-        properties.load(new FileReader(new File(absolutePath + pathToProperties)));
+        final String pathToProperties = "/src/main/resources/";
+        botProperties = new Properties();
+        langProperties = new Properties();
+        botProperties.load(new FileReader(new File(absolutePath + pathToProperties + "telegramBot.properties")));
+        langProperties.load(new FileReader(new File(absolutePath + pathToProperties + "lang.properties")));
+        initOutputMessages("ua");
+    }
+
+    private void initOutputMessages(String langCode) {
+        outputMessages = new HashMap<>();
+        for (OutputMessage message : values()) {
+            outputMessages.put(message, langProperties.getProperty(langCode + "." + message.toString().toLowerCase()));
+        }
     }
 
     @Override
@@ -53,13 +69,19 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
             if (inputText.equals("/start")) {
                 session.ifPresent(s -> start(session.get(), update.getMessage().getChatId()));
                 addDepartmentChoosingMenu(message);
-            }
-            session.ifPresent(s -> {
-                        if (s.getAttribute(DEPARTMENT_ATTRIBUTE) != null && session.get().getAttribute(IS_GROUP_SHOWED_ATTRIBUTE) != null) {
+            } else {
+                session.ifPresent(s -> {
+                    if (s.getAttribute(DEPARTMENT_ATTRIBUTE) != null) {
+                        if (session.get().getAttribute(IS_GROUP_SHOWED_ATTRIBUTE) != null) {
                             s.setAttribute("group", inputText);
-                            addDayChoosingMenu(message, inputText, s);
+                            addDayChoosingMenu(message, s);
                         }
-                    });
+                    } else {
+                        callbackDepartmentChoose(inputText, update.getMessage().getChatId(), s);
+                        message.setText(outputMessages.get(SELECT_GROUP));
+                    }
+                });
+            }
             sendMessage(message, update.getMessage().getChatId());
         } else if (update.hasCallbackQuery()) {
             String callbackQuery = update.getCallbackQuery().getData();
@@ -67,13 +89,12 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
             String req = queryAndAnswer[0];
             String resp = queryAndAnswer[1];
             switch (req) {
-                case CALLBACK_PREFIX_DEPARTMENT_CHOOSE:
-                    session.ifPresent(s ->
-                            callbackDepartmentChoose(resp, update.getCallbackQuery().getMessage().getChatId(), s));
-                    break;
                 case CALLBACK_PREFIX_DAY_CHOOSE:
                     session.ifPresent(s ->
                             callbackDayChoose(resp, update.getCallbackQuery().getMessage().getChatId(), s));
+                    break;
+
+                default:
                     break;
             }
         }
@@ -82,9 +103,8 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
     private void start(Session session, Long chatId) {
         removeSessionCache(session);
         SendMessage message = new SendMessage();
-        String WELCOME = "Вас вітає бот, що допоможе вам знайти розклад.";
-        String CHOOSES_CANCELED = "Вибір скасовано.";
-        String outputText = session.getAttribute(DEPARTMENT_ATTRIBUTE) == null ? WELCOME : CHOOSES_CANCELED;
+        OutputMessage messageKey = session.getAttribute(DEPARTMENT_ATTRIBUTE) == null ? WELCOME : CHOICE_CANCELED;
+        String outputText = outputMessages.get(messageKey);
         message.setText(outputText);
         message.setReplyMarkup(new ReplyKeyboardRemove());
         sendMessage(message, chatId);
@@ -111,20 +131,20 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
         for (Department department : departments) {
             departmentNames.add(department.getName());
         }
-        message.setText("Оберіть факультет:");
-        message.setReplyMarkup(makeInlineKeyboard(departmentNames, CALLBACK_PREFIX_DEPARTMENT_CHOOSE + ":"));
+        message.setText(outputMessages.get(SELECT_DEPARTMENT));
+        message.setReplyMarkup(menuMaker.makeStandartMenu(departmentNames));
     }
 
-    private void addDayChoosingMenu(SendMessage message, String groupName, Session session) {
+    private void addDayChoosingMenu(SendMessage message, Session session) {
         Set<Day> daysWithLessons = new TreeSet<>();
         timetableService.findLessonByDepartmentAndGroup(session.getAttribute("department").toString(),
                 session.getAttribute("group").toString()).forEach(l-> daysWithLessons.add(l.getDay()));
-        message.setText("Обрано групу " + groupName +".\nОберіть день:");
+        message.setText(outputMessages.get(SELECT_DAY));
         List<String> listOfDayWithLessons = new ArrayList<>(daysWithLessons.size());
         for (Day day : daysWithLessons) {
             listOfDayWithLessons.add(day.toString());
         }
-        message.setReplyMarkup(makeInlineKeyboard(listOfDayWithLessons, CALLBACK_PREFIX_DAY_CHOOSE + ":"));
+        message.setReplyMarkup(menuMaker.makeInlineMenu(listOfDayWithLessons, CALLBACK_PREFIX_DAY_CHOOSE + ":"));
     }
 
     private void addGroupChoosingMenu(SendMessage message, String departmentName) {
@@ -133,40 +153,14 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
         for (Group group : groups) {
             groupNames.add(group.getName());
         }
-        message.setReplyMarkup(makeKeyboard(groupNames));
-    }
-
-    private ReplyKeyboardMarkup makeKeyboard(List<String> buttonNames) {
-        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
-        replyKeyboardMarkup.setResizeKeyboard(true);
-        replyKeyboardMarkup.setOneTimeKeyboard(false);
-
-        List<KeyboardRow> keyboard = new ArrayList<>();
-        for (String name : buttonNames) {
-            KeyboardRow keyboardRow = new KeyboardRow();
-            keyboardRow.add(new KeyboardButton(name));
-            keyboard.add(keyboardRow);
-        }
-
-        return replyKeyboardMarkup.setKeyboard(keyboard);
-    }
-
-    private InlineKeyboardMarkup makeInlineKeyboard(List<String> buttonNames, String callbackPrefix) {
-        List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
-        for (String name : buttonNames) {
-            buttons.add(Collections.singletonList(new InlineKeyboardButton()
-                    .setText(name)
-                    .setCallbackData(callbackPrefix + name)));
-        }
-        return new InlineKeyboardMarkup().setKeyboard(buttons);
+        message.setReplyMarkup(menuMaker.makeStandartMenu(groupNames));
     }
 
     private void callbackDepartmentChoose(String departmentName, Long chatId, Session session) {
         session.setAttribute(DEPARTMENT_ATTRIBUTE, departmentName);
-        session.setTimeout(48*3600L);
+        session.setTimeout(4800*360000L);
         SendMessage message = new SendMessage();
-        message.setText("Обрано " + departmentName +
-                ".\n Тепер оберіть групу.");
+        message.setText(outputMessages.get(SELECTED) + " " + departmentName);
         addGroupChoosingMenu(message, session.getAttribute(DEPARTMENT_ATTRIBUTE).toString());
         session.setAttribute(IS_GROUP_SHOWED_ATTRIBUTE, true);
         sendMessage(message, chatId);
@@ -174,37 +168,25 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
 
     private void callbackDayChoose(String dayName, Long chatId, Session session) {
         SendMessage message = new SendMessage();
+        String departmentName = session.getAttribute(DEPARTMENT_ATTRIBUTE).toString();
         if (session.getAttribute("group") != null) {
-            message.setText(format(timetableService.findLessonByDepartmentAndGroupAndDay(session.getAttribute(DEPARTMENT_ATTRIBUTE).toString(),
-                    session.getAttribute("group").toString(), dayName)));
+            message.setParseMode("html");
+            List<Lesson> lessons = timetableService
+                    .findLessonByDepartmentAndGroupAndDay(departmentName, session.getAttribute("group").toString(), dayName);
+            message.setText(outputFormatter.formatLessonsForADay(lessons, dayName));
         } else {
-            message.setText("Вибір групи було скасовано. Спробуйте знову, спочату обравши факультет та групу.");
+            message.setText(outputMessages.get(CHOICE_CANCELED));
         }
         sendMessage(message, chatId);
     }
 
-    private String format(List<Lesson> lessons) {
-        StringBuilder timetable = new StringBuilder();
-        if (!lessons.isEmpty()) {
-            timetable.append("\t").append(lessons.get(0).getDay()).append("\n");
-        }
-        lessons.sort(Comparator.comparingInt(l -> l.getClassTime().getLessonNumber()));
-        for (Lesson lesson : lessons) {
-            timetable.append(lesson.getClassTime().getLessonNumber()).append(". ")
-                    .append(lesson.getSubject().getName())
-                    .append("\n Ауд. ").append(lesson.getAudience().getName()).append(", ")
-                    .append(lesson.getTeacher().getName()).append("\n");
-        }
-        return timetable.toString();
-    }
-
     @Override
     public String getBotUsername() {
-        return this.properties.getProperty("bot.name");
+        return this.botProperties.getProperty("bot.name");
     }
 
     @Override
     public String getBotToken() {
-        return this.properties.getProperty("bot.token");
+        return this.botProperties.getProperty("bot.token");
     }
 }
