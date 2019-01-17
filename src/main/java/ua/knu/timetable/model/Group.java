@@ -17,9 +17,14 @@ public class Group {
     private Long id;
 
     private String name;
+    private Integer yearOfStudy;
 
     public String getName() {
         return name;
+    }
+
+    public Integer getYearOfStudy() {
+        return yearOfStudy;
     }
 
     public Group(String name, Department department) {

@@ -1,6 +1,9 @@
 package ua.knu.timetable.bot;
 
 import org.apache.shiro.session.Session;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.session.TelegramLongPollingSessionBot;
@@ -26,12 +29,13 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
     private final String CALLBACK_PREFIX_DAY_CHOOSE = "dayChoose";
 
     enum OutputMessage {
-        WELCOME, SELECT_GROUP, SELECT_DEPARTMENT, SELECT_DAY, SELECTED, CHOICE_CANCELED
+        WELCOME, SELECT_GROUP, SELECT_DEPARTMENT, SELECT_DAY, SELECTED, CHOICE_CANCELED, SELECT_YEAR
     }
 
     private Map<OutputMessage, String> outputMessages;
 
     private Properties botProperties;
+
     private Properties langProperties;
 
     private MenuMaker<ReplyKeyboard> menuMaker = new TelegramBotMenuMaker();
@@ -69,18 +73,26 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
             if (inputText.equals("/start")) {
                 session.ifPresent(s -> start(session.get(), update.getMessage().getChatId()));
                 addDepartmentChoosingMenu(message);
+            } else if (inputText.startsWith("\u2B05")) {
+                session.ifPresent(this::removeSessionCache);
+                addDepartmentChoosingMenu(message);
+            } else if (inputText.matches("^[0-6]")) {
+                Integer year = (int)update.getMessage().getText().charAt(0)-48;
+                message.setText(outputMessages.get(SELECT_GROUP));
+                session.ifPresent(s-> addGroupChoosingMenu(message, s.getAttribute(DEPARTMENT_ATTRIBUTE).toString(), year));
             } else {
-                session.ifPresent(s -> {
-                    if (s.getAttribute(DEPARTMENT_ATTRIBUTE) != null) {
-                        if (session.get().getAttribute(IS_GROUP_SHOWED_ATTRIBUTE) != null) {
-                            s.setAttribute("group", inputText);
-                            addDayChoosingMenu(message, s);
+                    session.ifPresent(s -> {
+                        if (s.getAttribute(DEPARTMENT_ATTRIBUTE) != null) {
+                            if (session.get().getAttribute(IS_GROUP_SHOWED_ATTRIBUTE) != null) {
+                                s.setAttribute("group", inputText);
+                                message.setText(outputMessages.get(SELECT_DAY));
+                                message.setReplyMarkup(getDayChoosingMenu(s));
+                            }
+                        } else {
+                            callbackDepartmentChoose(inputText, update.getMessage().getChatId(), s);
+                            message.setText(outputMessages.get(SELECT_YEAR));
                         }
-                    } else {
-                        callbackDepartmentChoose(inputText, update.getMessage().getChatId(), s);
-                        message.setText(outputMessages.get(SELECT_GROUP));
-                    }
-                });
+                    });
             }
             sendMessage(message, update.getMessage().getChatId());
         } else if (update.hasCallbackQuery()) {
@@ -91,7 +103,7 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
             switch (req) {
                 case CALLBACK_PREFIX_DAY_CHOOSE:
                     session.ifPresent(s ->
-                            callbackDayChoose(resp, update.getCallbackQuery().getMessage().getChatId(), s));
+                            callbackDayChoose(resp, update.getCallbackQuery().getMessage(), s));
                     break;
 
                 default:
@@ -132,52 +144,70 @@ public class TelegramBot extends TelegramLongPollingSessionBot implements messen
             departmentNames.add(department.getName());
         }
         message.setText(outputMessages.get(SELECT_DEPARTMENT));
-        message.setReplyMarkup(menuMaker.makeStandartMenu(departmentNames));
+        message.setReplyMarkup(menuMaker.makeStandardMenu(departmentNames, 1, false));
     }
 
-    private void addDayChoosingMenu(SendMessage message, Session session) {
+    private InlineKeyboardMarkup getDayChoosingMenu(Session session) {
         Set<Day> daysWithLessons = new TreeSet<>();
         timetableService.findLessonByDepartmentAndGroup(session.getAttribute("department").toString(),
                 session.getAttribute("group").toString()).forEach(l-> daysWithLessons.add(l.getDay()));
-        message.setText(outputMessages.get(SELECT_DAY));
         List<String> listOfDayWithLessons = new ArrayList<>(daysWithLessons.size());
         for (Day day : daysWithLessons) {
-            listOfDayWithLessons.add(day.toString());
+            listOfDayWithLessons.add(day.getShortName());
         }
-        message.setReplyMarkup(menuMaker.makeInlineMenu(listOfDayWithLessons, CALLBACK_PREFIX_DAY_CHOOSE + ":"));
+        return (InlineKeyboardMarkup)menuMaker.makeInlineMenu(listOfDayWithLessons, CALLBACK_PREFIX_DAY_CHOOSE + ":");
     }
 
-    private void addGroupChoosingMenu(SendMessage message, String departmentName) {
-        List<Group> groups = timetableService.findGroupsByDepartmentName(departmentName);
+    private void addGroupChoosingMenu(SendMessage message, String departmentName, Integer yearOfStudy) {
+        List<Group> groups = timetableService.findGroupsByDepartmentNameAndYearOfStudy(departmentName, yearOfStudy);
         List<String> groupNames = new ArrayList<>(groups.size());
         for (Group group : groups) {
             groupNames.add(group.getName());
         }
-        message.setReplyMarkup(menuMaker.makeStandartMenu(groupNames));
+        message.setReplyMarkup(menuMaker.makeStandardMenu(groupNames, 3, true));
+    }
+
+    private void addYearChoosingMenu(SendMessage message, String departmentName) {
+        List<Group> groups = timetableService.findGroupsByDepartmentName(departmentName);
+        TreeSet<String> years = new TreeSet<>();
+        for (Group group : groups) {
+            years.add(group.getYearOfStudy().toString());
+        }
+        message.setReplyMarkup(menuMaker.makeStandardMenu(new ArrayList<>(years), 6, true));
     }
 
     private void callbackDepartmentChoose(String departmentName, Long chatId, Session session) {
         session.setAttribute(DEPARTMENT_ATTRIBUTE, departmentName);
-        session.setTimeout(4800*360000L);
+        session.setTimeout(Long.MAX_VALUE);
         SendMessage message = new SendMessage();
         message.setText(outputMessages.get(SELECTED) + " " + departmentName);
-        addGroupChoosingMenu(message, session.getAttribute(DEPARTMENT_ATTRIBUTE).toString());
+        addYearChoosingMenu(message, session.getAttribute(DEPARTMENT_ATTRIBUTE).toString());
         session.setAttribute(IS_GROUP_SHOWED_ATTRIBUTE, true);
         sendMessage(message, chatId);
     }
 
-    private void callbackDayChoose(String dayName, Long chatId, Session session) {
-        SendMessage message = new SendMessage();
-        String departmentName = session.getAttribute(DEPARTMENT_ATTRIBUTE).toString();
-        if (session.getAttribute("group") != null) {
-            message.setParseMode("html");
-            List<Lesson> lessons = timetableService
-                    .findLessonByDepartmentAndGroupAndDay(departmentName, session.getAttribute("group").toString(), dayName);
-            message.setText(outputFormatter.formatLessonsForADay(lessons, dayName));
-        } else {
-            message.setText(outputMessages.get(CHOICE_CANCELED));
+    private void callbackDayChoose(String dayName, Message input, Session session) {
+        String fullDayName = Day.getByShortName(dayName).getFullName();
+        if (!input.getText().contains(fullDayName)) {
+            EditMessageText message = new EditMessageText();
+            message.setReplyMarkup(getDayChoosingMenu(session));
+            message.setMessageId(input.getMessageId());
+            message.setChatId(input.getChatId());
+            String departmentName = session.getAttribute(DEPARTMENT_ATTRIBUTE).toString();
+            if (session.getAttribute("group") != null) {
+                message.setParseMode("html");
+                List<Lesson> lessons = timetableService
+                        .findLessonByDepartmentAndGroupAndDay(departmentName, session.getAttribute("group").toString(), Day.getByShortName(dayName).toString());
+                message.setText(outputFormatter.formatLessonsForADay(lessons, fullDayName));
+            } else {
+                message.setText(outputMessages.get(CHOICE_CANCELED));
+            }
+            try {
+                execute(message);
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
+            }
         }
-        sendMessage(message, chatId);
     }
 
     @Override

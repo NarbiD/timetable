@@ -23,8 +23,12 @@ public class GroupService {
         return groupRepository.getGroupByDepartmentAndName(department, name);
     }
 
+    public List<Group> findAllByYearOfStudy(String departmentName, Integer yearOfStudy) {
+        return groupRepository.findAllByDepartment_NameAndYearOfStudyOrderByName(departmentName, yearOfStudy);
+    }
+
     public List<Group> findAllByDepartmentName(String departmentName) {
-        return groupRepository.findAllByDepartment_Name(departmentName);
+        return groupRepository.findAllByDepartment_NameOrderByName(departmentName);
     }
 
 

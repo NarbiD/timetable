@@ -48,4 +48,8 @@ public class TimetableService {
     public List<Group> findGroupsByDepartmentName(String departmentName) {
         return groupService.findAllByDepartmentName(departmentName);
     }
+
+    public List<Group> findGroupsByDepartmentNameAndYearOfStudy(String departmentName, Integer yearOfStudy) {
+        return groupService.findAllByYearOfStudy(departmentName, yearOfStudy);
+    }
 }
