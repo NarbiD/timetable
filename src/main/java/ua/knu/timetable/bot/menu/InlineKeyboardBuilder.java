@@ -4,25 +4,26 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-public class InlineMenuBuilder {
-    private List<String> buttonNames;
-    private List<String> fullSizeButtons;
+public class InlineKeyboardBuilder {
+    private Collection<String> buttonNames;
+    private Collection<String> fullSizeButtons;
     private String callbackPrefix;
 
-    public InlineMenuBuilder setCallbackPrefix(String callbackPrefix) {
+    public InlineKeyboardBuilder setCallbackPrefix(String callbackPrefix) {
         this.callbackPrefix = callbackPrefix;
         return this;
     }
 
-    public InlineMenuBuilder setButtonNames(List<String> buttonNames) {
+    public InlineKeyboardBuilder setButtonNames(Collection<String> buttonNames) {
         this.buttonNames = buttonNames;
         return this;
     }
 
-    public InlineMenuBuilder setFullSizeButtons(List<String> fullSizeButtons) {
+    public InlineKeyboardBuilder setFullSizeButtons(Collection<String> fullSizeButtons) {
         this.fullSizeButtons = fullSizeButtons;
         return this;
     }
@@ -30,6 +31,10 @@ public class InlineMenuBuilder {
     public InlineKeyboardMarkup build() {
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
         List<InlineKeyboardButton> buttons = new ArrayList<>();
+        if (callbackPrefix==null) {
+            throw new IllegalStateException("Callback prefix not found");
+        }
+
         if (buttonNames != null) {
             for (String name : buttonNames) {
                 buttons.add(new InlineKeyboardButton()

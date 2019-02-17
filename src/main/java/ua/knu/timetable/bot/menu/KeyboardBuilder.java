@@ -7,12 +7,15 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
-public class StandardMenuBuilder {
-    private List<String> buttonNames;
-    private List<String> fullSizeButtons;
+public class KeyboardBuilder {
+    private Collection<String> buttonNames;
+    private Collection<String> fullSizeButtons;
+    private String icon;
     private int buttonPerLine;
     private boolean supportButtons;
     private static Properties defaultButtons;
@@ -29,35 +32,49 @@ public class StandardMenuBuilder {
         }
     }
 
-    public StandardMenuBuilder setButtonPerLine(int buttonPerLine) {
+    public KeyboardBuilder setButtonPerLine(int buttonPerLine) {
         this.buttonPerLine = buttonPerLine;
         return this;
     }
 
-    public StandardMenuBuilder setSupportButtons(boolean supportButtons) {
+    public KeyboardBuilder setSupportButtons(boolean supportButtons) {
         this.supportButtons = supportButtons;
         return this;
     }
 
-    public StandardMenuBuilder setButtonNames(List<String> buttonNames) {
+    public KeyboardBuilder setButtonNames(Collection<String> buttonNames) {
         this.buttonNames = buttonNames;
         return this;
     }
 
-    public StandardMenuBuilder setFullSizeButtons(List<String> fullSizeButtons) {
+    public KeyboardBuilder setFullSizeButtons(List<String> fullSizeButtons) {
         this.fullSizeButtons = fullSizeButtons;
         return this;
     }
+
+    public KeyboardBuilder setIcon(String icon) {
+        this.icon = icon;
+        return this;
+    }
+
 
     public ReplyKeyboardMarkup build() {
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
         replyKeyboardMarkup.setResizeKeyboard(true);
         replyKeyboardMarkup.setOneTimeKeyboard(false);
 
-        List<KeyboardRow> keyboard = makeRows(this.buttonNames, buttonPerLine==0?1:buttonPerLine);
-        keyboard.addAll(makeRows(fullSizeButtons, 1));
+        List<KeyboardRow> keyboard = new ArrayList<>();
 
-        if (supportButtons) {
+        final String tag = this.icon!=null ? this.icon+"  " : "";
+        if (this.buttonNames != null) {
+            buttonNames = buttonNames.stream().map(name->tag+name).collect(Collectors.toList());
+            keyboard.addAll(makeRows(new ArrayList<>(this.buttonNames), buttonPerLine==0?1:buttonPerLine));
+        }
+        if (this.fullSizeButtons != null) {
+            fullSizeButtons = fullSizeButtons.stream().map(name->tag+name).collect(Collectors.toList());
+            keyboard.addAll(makeRows(new ArrayList<>(fullSizeButtons), 1));
+        }
+        if (this.supportButtons) {
             keyboard.add(supportButtons());
         }
         return replyKeyboardMarkup.setKeyboard(keyboard);

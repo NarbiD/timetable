@@ -6,11 +6,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import ua.knu.timetable.dto.LessonDto;
-import ua.knu.timetable.model.Department;
-import ua.knu.timetable.model.Group;
 import ua.knu.timetable.model.Lesson;
-import ua.knu.timetable.service.DepartmentService;
-import ua.knu.timetable.service.GroupService;
 import ua.knu.timetable.service.TimetableService;
 
 import java.util.ArrayList;
@@ -22,7 +18,7 @@ public class TimetableController {
     final private TimetableService timetableService;
 
     @Autowired
-    public TimetableController(TimetableService timetableService, DepartmentService departmentService, GroupService groupService) {
+    public TimetableController(TimetableService timetableService) {
         this.timetableService = timetableService;
     }
 

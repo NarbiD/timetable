@@ -1,5 +1,10 @@
 package ua.knu.timetable.model;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@Getter
+@AllArgsConstructor
 public enum Day {
     MONDAY("Понеділок", "Пн"),
     TUESDAY("Вівторок", "Вт"),
@@ -7,21 +12,8 @@ public enum Day {
     THURSDAY("Четвер", "Чт"),
     FRIDAY("П'ятниця", "Пт");
 
-    private String fullName;
+    private String visibleName;
     private String shortName;
-
-    Day(String fullName, String shortName) {
-        this.fullName = fullName;
-        this.shortName = shortName;
-    }
-
-    public String getFullName() {
-        return this.fullName;
-    }
-
-    public String getShortName() {
-        return this.shortName;
-    }
 
     public static Day getByShortName(String day) {
         switch (day) {
@@ -36,6 +28,6 @@ public enum Day {
             case "Пт":
                 return FRIDAY;
         }
-        throw new IllegalArgumentException("Incorrect day");
+        throw new IllegalArgumentException("Incorrect day: " + day);
     }
 }

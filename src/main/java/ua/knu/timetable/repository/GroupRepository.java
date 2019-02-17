@@ -7,7 +7,7 @@ import ua.knu.timetable.model.Group;
 import java.util.List;
 
 public interface GroupRepository extends JpaRepository<Group, Long> {
-    Group getGroupByDepartmentAndName(Department department, String name);
+    Group findByNameAndDepartment_Name(String name, String departmentName);
     List<Group> findAllByDepartment_NameOrderByName(String departmentName);
     List<Group> findAllByDepartment_NameAndYearOfStudyOrderByName(String departmentName, Integer year);
 }

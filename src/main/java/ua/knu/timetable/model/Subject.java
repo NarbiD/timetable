@@ -1,6 +1,7 @@
 package ua.knu.timetable.model;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -9,6 +10,7 @@ import javax.persistence.*;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 @Entity
 @Table(name = "subject")
 public class Subject {
@@ -17,11 +19,6 @@ public class Subject {
     private Long id;
 
     private String name;
-
-    public String getName() {
-        return name;
-    }
-
 
     @ManyToOne
     @JoinColumn(name = "department_id")

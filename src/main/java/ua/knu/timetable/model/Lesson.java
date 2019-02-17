@@ -1,15 +1,14 @@
 package ua.knu.timetable.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import javax.persistence.*;
+import java.util.Objects;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode
 @Builder
 @Entity
 @Table(name = "lesson")
@@ -45,35 +44,36 @@ public class Lesson {
     @JoinColumn(name = "class_time_id")
     private ClassTime classTime;
 
-    public Long getId() {
-        return id;
+    private String week;
+    private String subgroup;
+    private String format;
+
+    public boolean equalsExcludingFormatAndWeek(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Lesson lesson = (Lesson) o;
+        return  day == lesson.day &&
+                Objects.equals(department, lesson.department) &&
+                Objects.equals(subject, lesson.subject) &&
+                Objects.equals(audience, lesson.audience) &&
+                Objects.equals(teacher, lesson.teacher) &&
+                Objects.equals(group, lesson.group) &&
+                Objects.equals(classTime, lesson.classTime) &&
+                Objects.equals(subgroup, lesson.subgroup);
     }
 
-    public Day getDay() {
-        return day;
+    public boolean equalsExcludingGroup(Object o) {
+        if (this == o) return true;
+        if (getClass() != o.getClass()) return false;
+        Lesson lesson = (Lesson) o;
+        return day == lesson.day &&
+                Objects.equals(department, lesson.department) &&
+                Objects.equals(subject, lesson.subject) &&
+                Objects.equals(audience, lesson.audience) &&
+                Objects.equals(teacher, lesson.teacher) &&
+                Objects.equals(classTime, lesson.classTime) &&
+                Objects.equals(week, lesson.week) &&
+                Objects.equals(format, lesson.format);
     }
 
-    public Department getDepartment() {
-        return department;
-    }
-
-    public Subject getSubject() {
-        return subject;
-    }
-
-    public Audience getAudience() {
-        return audience;
-    }
-
-    public Teacher getTeacher() {
-        return teacher;
-    }
-
-    public Group getGroup() {
-        return group;
-    }
-
-    public ClassTime getClassTime() {
-        return classTime;
-    }
 }

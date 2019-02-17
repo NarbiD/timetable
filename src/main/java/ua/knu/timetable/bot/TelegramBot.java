@@ -11,21 +11,23 @@ import org.telegram.telegrambots.session.TelegramLongPollingSessionBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import ua.knu.timetable.bot.menu.MenuFactory;
-import ua.knu.timetable.model.Day;
-import ua.knu.timetable.model.Lesson;
+import ua.knu.timetable.bot.menu.KeyboardFactory;
+import ua.knu.timetable.model.*;
 import ua.knu.timetable.service.TimetableService;
+import com.vdurmont.emoji.EmojiParser;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import static ua.knu.timetable.bot.TelegramBot.DefaultButton.*;
 import static ua.knu.timetable.bot.TelegramBot.OutputMessage.*;
 
 public class TelegramBot extends TelegramLongPollingSessionBot {
     private final String DEPARTMENT_ATTRIBUTE = "department";
+    private final String GROUP_ATTRIBUTE = "group";
     private final String CALLBACK_PREFIX_DAY_SELECTION = "daySelection";
 
     enum OutputMessage {
@@ -43,13 +45,12 @@ public class TelegramBot extends TelegramLongPollingSessionBot {
     private Properties buttonsProperties;
     private Properties langProperties;
 
-    private OutputFormatter outputFormatter = new OutputFormatter();
     private TimetableService timetableService;
-    private MenuFactory<ReplyKeyboard> menuFactory;
+    private KeyboardFactory<ReplyKeyboard> keyboardFactory;
 
-    public TelegramBot(MenuFactory<ReplyKeyboard> menuFactory, TimetableService timetableService) throws IOException {
+    public TelegramBot(KeyboardFactory<ReplyKeyboard> keyboardFactory, TimetableService timetableService) throws IOException {
         super();
-        this.menuFactory = menuFactory;
+        this.keyboardFactory = keyboardFactory;
         this.timetableService = timetableService;
         loadProperties();
     }
@@ -89,35 +90,64 @@ public class TelegramBot extends TelegramLongPollingSessionBot {
         }
     }
 
+    //TODO: Refactoring onUpdateReceived
+
     @Override
     public void onUpdateReceived(Update update, Optional<Session> session) {
         if (session.isPresent() && update.hasMessage() && update.getMessage().hasText()) {
             SendMessage message = new SendMessage();
             String inputText = update.getMessage().getText();
+            String inputPrefix ="";
+            if (inputText.contains("  ")){
+                inputText = update.getMessage().getText().split("  ")[1];
+                inputPrefix = update.getMessage().getText().split("  ")[0];
+            }
             if (inputText.equals("/start")) {
                 start(session.get(), update.getMessage().getChatId());
                 removeSessionAttributes(session.get());
                 message.setText(outputMessages.get(SELECT_DEPARTMENT));
-                message.setReplyMarkup(menuFactory.makeDepartmentSelectionMenu());
-            } else if (inputText.equals(defaultButtons.get(CHANGE_DEPARTMENT_BUTTON))) {
+                List<String> departments = timetableService.findAllDepartments().stream().map(Department::getName).collect(Collectors.toList());
+                message.setReplyMarkup(keyboardFactory.makeKeyboard((departments), EmojiParser.parseToUnicode(":classical_building:")));
+            } else if (inputPrefix.equals(EmojiParser.parseToUnicode(":bust_in_silhouette:"))) {
+                session.get().setAttribute("teacher", inputText);
+                message.setText(outputMessages.get(SELECT_DAY));
+                message.setReplyMarkup(keyboardFactory.makeInlineKeyboard(Stream.of(Day.values()).map(Day::getShortName).collect(Collectors.toList()), CALLBACK_PREFIX_DAY_SELECTION + "teacher"));
+            } else if (inputPrefix.equals(EmojiParser.parseToUnicode(":spiral_calendar_pad:")) && inputText.equals("Розклад груп")) {
+                message.setText(outputMessages.get(SELECT_YEAR));
+                String departmentName = session.get().getAttribute(DEPARTMENT_ATTRIBUTE).toString();
+                List<String> years = timetableService.findGroupsByDepartmentName(departmentName).stream()
+                        .map(Group::getYearOfStudy).distinct().sorted()
+                        .map(year->EmojiParser.parseToUnicode(year + "-й"))
+                        .collect(Collectors.toList());
+                message.setReplyMarkup(keyboardFactory.makeResizableKeyboard(years, 6));
+            } else if (inputPrefix.equals(EmojiParser.parseToUnicode(":spiral_calendar_pad:")) && inputText.equals("Розклад викладача")) {
+                message.setText("Оберіть викладача або введіть його прізвище");
+                List<String> teacherNames = timetableService
+                        .findTeacherByDepartmentName(session.get().getAttribute(DEPARTMENT_ATTRIBUTE).toString())
+                        .stream().limit(30).map(Teacher::getName).collect(Collectors.toList());
+                message.setReplyMarkup(keyboardFactory.makeKeyboard(teacherNames, EmojiParser.parseToUnicode(":bust_in_silhouette:")));
+            } else if (inputPrefix.equals("\u2B05")) {
                 removeSessionAttributes(session.get());
                 message.setText(outputMessages.get(SELECT_DEPARTMENT));
-                message.setReplyMarkup(menuFactory.makeDepartmentSelectionMenu());
-            } else if (inputText.matches("^[0-6]")) {
+                List<String> departments = timetableService.findAllDepartments().stream().map(Department::getName).collect(Collectors.toList());
+                message.setReplyMarkup(keyboardFactory.makeKeyboard(departments, EmojiParser.parseToUnicode(":classical_building:")));
+            } else if (inputText.matches("^[1-6]-й")) {
                 int year = (int)update.getMessage().getText().charAt(0)-48;
+                String departmentName = session.get().getAttribute(DEPARTMENT_ATTRIBUTE).toString();
                 message.setText(outputMessages.get(SELECT_GROUP));
-                message.setReplyMarkup(menuFactory.makeGroupSelectionMenu(session.get().getAttribute(DEPARTMENT_ATTRIBUTE).toString(), year));
-            } else {
-                if (session.get().getAttribute(DEPARTMENT_ATTRIBUTE) != null) {
-                    String departmentName = session.get().getAttribute(DEPARTMENT_ATTRIBUTE).toString();
-                    session.get().setAttribute("group", inputText);
-                    message.setText(outputMessages.get(SELECT_DAY));
-                    message.setReplyMarkup(menuFactory.makeDaySelectionMenu(departmentName, inputText, CALLBACK_PREFIX_DAY_SELECTION));
-                } else {
-                    rememberDepartment(inputText, session.get());
-                    message.setReplyMarkup(menuFactory.makeYearSelectionMenu(inputText));
-                    message.setText(outputMessages.get(SELECT_YEAR));
-                }
+                List<String> groups = timetableService.findGroupsByDepartmentNameAndYearOfStudy(departmentName, year).stream()
+                        .map(Group::getName)
+                        .collect(Collectors.toList());
+                message.setReplyMarkup(keyboardFactory.makeResizableKeyboard(groups, EmojiParser.parseToUnicode(":busts_in_silhouette:"), 4));
+            } else if (inputPrefix.equals(EmojiParser.parseToUnicode(":busts_in_silhouette:"))) {
+                session.get().setAttribute(GROUP_ATTRIBUTE, inputText);
+                message.setText(outputMessages.get(SELECT_DAY));
+                message.setReplyMarkup(keyboardFactory.makeInlineKeyboard(Stream.of(Day.values()).map(Day::getShortName).collect(Collectors.toList()), CALLBACK_PREFIX_DAY_SELECTION));
+            } else if (inputPrefix.equals(EmojiParser.parseToUnicode(":classical_building:"))){
+                rememberDepartment(inputText, session.get());
+                message.setText(outputMessages.get(SELECT_DEPARTMENT));
+                List<String> buttons = Arrays.asList("Розклад груп","Розклад викладача");
+                message.setReplyMarkup(keyboardFactory.makeKeyboard(buttons, EmojiParser.parseToUnicode(":spiral_calendar_pad:")));
             }
             message.setChatId(update.getMessage().getChatId());
             send(message);
@@ -128,9 +158,11 @@ public class TelegramBot extends TelegramLongPollingSessionBot {
             switch (req) {
                 case CALLBACK_PREFIX_DAY_SELECTION:
                     session.ifPresent(s ->
-                            day_onClick(resp, update.getCallbackQuery().getMessage(), s));
+                            studentDay_onClick(resp, update.getCallbackQuery().getMessage(), s));
                     break;
-
+                case CALLBACK_PREFIX_DAY_SELECTION + "teacher":
+                    session.ifPresent(s ->
+                            teacherDay_onClick(resp, update.getCallbackQuery().getMessage(), s));
                 default:
                     break;
             }
@@ -157,34 +189,65 @@ public class TelegramBot extends TelegramLongPollingSessionBot {
         session.setAttribute(DEPARTMENT_ATTRIBUTE, departmentName);
     }
 
-    private void day_onClick(String dayName, Message input, Session session) {
-        String fullDayName = Day.getByShortName(dayName).getFullName();
+    private void studentDay_onClick(String dayName, Message input, Session session) {
+        String fullDayName = Day.getByShortName(dayName).getVisibleName();
         if (!input.getText().contains(fullDayName)) {
             String departmentName = session.getAttribute(DEPARTMENT_ATTRIBUTE).toString();
-            String groupName = session.getAttribute("group").toString();
+            String groupName = session.getAttribute(GROUP_ATTRIBUTE).toString();
 
             List<Lesson> lessons = timetableService
                     .findLessonByDepartmentAndGroupAndDay(departmentName, groupName, Day.getByShortName(dayName).toString());
 
-            send(updateTimetableInMessage(input, lessons, fullDayName));
+            send(updateTimetableInMessage(input, lessons, fullDayName, CALLBACK_PREFIX_DAY_SELECTION));
         }
     }
 
-    private EditMessageText updateTimetableInMessage(Message message, List<Lesson> lessons, String day) {
-        EditMessageText update = new EditMessageText();
-        if (!lessons.isEmpty()) {
-            update.setReplyMarkup((InlineKeyboardMarkup)menuFactory.makeDaySelectionMenu(
-                    lessons.get(0).getDepartment().getName(),
-                    lessons.get(0).getGroup().getName(),
-                    CALLBACK_PREFIX_DAY_SELECTION));
-            update.setMessageId(message.getMessageId());
-            update.setChatId(message.getChatId());
-            update.setParseMode("html");
-            update.setText(outputFormatter.formatLessonsForADay(lessons, day));
-        } else {
-            update.setText("Empty"); //TODO: set text
+    private void teacherDay_onClick(String dayName, Message input, Session session) {
+        String fullDayName = Day.getByShortName(dayName).getVisibleName();
+        if (!input.getText().contains(fullDayName)) {
+            String departmentName = session.getAttribute(DEPARTMENT_ATTRIBUTE).toString();
+            String teacherName = session.getAttribute("teacher").toString();
+
+            List<Lesson> lessons = timetableService
+                    .findLessonByDepartmentAndTeacherAndDay(departmentName, teacherName, Day.getByShortName(dayName).toString());
+
+            send(updateTimetableInMessage(input, lessons, fullDayName, CALLBACK_PREFIX_DAY_SELECTION+"teacher"));
         }
+    }
+
+    private EditMessageText updateTimetableInMessage(Message message, List<Lesson> lessons, String currentDay, String callbackPrefix) {
+        EditMessageText update = new EditMessageText();
+        update.setMessageId(message.getMessageId());
+        update.setChatId(message.getChatId());
+        update.setParseMode("html");
+        List<String> days = Stream.of(Day.values()).map(Day::getShortName).collect(Collectors.toList());
+        update.setReplyMarkup((InlineKeyboardMarkup) keyboardFactory.makeInlineKeyboard(days,
+                callbackPrefix));
+        OutputBuilder ob = new OutputBuilder()
+                .setDay(currentDay);
+        if (!lessons.isEmpty()) {
+            ob.setLessons(lessons)
+                    .includeSubject(true)
+                    .includeSubgroup(true)
+                    .includeAudience(true)
+                    .includeTeacher(true);
+            if (callbackPrefix.equals(CALLBACK_PREFIX_DAY_SELECTION)) {
+                ob.includeTeacher(true);
+            } else if (callbackPrefix.equals(CALLBACK_PREFIX_DAY_SELECTION+"teacher")) {
+                ob.includeGroup(true);
+            }
+        } else {
+            ob.setText("Розклад для цього дня відсутній");
+        }
+        update.setText(ob.build());
         return update;
+    }
+
+    private List<String> getDays(Collection<Lesson> lessons) {
+        return lessons.stream()
+                .map(Lesson::getDay).distinct().sorted()
+                .map(Day::getShortName)
+                .collect(Collectors.toList());
     }
 
     private void send(BotApiMethod<?> message) {

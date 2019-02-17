@@ -6,34 +6,23 @@ import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import java.util.List;
-import java.util.Objects;
 
-@Data
+@Entity
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
+@Data
 @Table(name = "department")
 public class Department {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    public String getName() {
-        return name;
-    }
-
     private String name;
-
-    public Department(String name) {
-        this.name = name;
-    }
 
     @OneToMany(mappedBy = "department", cascade = CascadeType.ALL)
     private List<Teacher> teachers;
-
     @OneToMany(mappedBy = "department", cascade = CascadeType.ALL)
     private List<Audience> audiences;
-
     @OneToMany(mappedBy = "department", cascade = CascadeType.ALL)
     private List<Group> groups;
     @OneToMany(mappedBy = "department", cascade = CascadeType.ALL)

@@ -23,17 +23,4 @@ public class ClassTime {
     private int lessonNumber;
     private String startTime;
     private String endTime;
-
-    public int getLessonNumber() {
-        return lessonNumber;
-    }
-
-    public String getStartTime() {
-        return startTime;
-    }
-
-    public String getEndTime() {
-        return endTime;
-    }
-
 }
