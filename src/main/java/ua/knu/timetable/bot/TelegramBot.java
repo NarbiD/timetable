@@ -104,10 +104,7 @@ public class TelegramBot extends TelegramLongPollingSessionBot {
             }
             if (inputText.equals("/start")) {
                 start(session.get(), update.getMessage().getChatId());
-                removeSessionAttributes(session.get());
-                message.setText(outputMessages.get(SELECT_DEPARTMENT));
-                List<String> departments = timetableService.findAllDepartments().stream().map(Department::getName).collect(Collectors.toList());
-                message.setReplyMarkup(keyboardFactory.makeKeyboard((departments), EmojiParser.parseToUnicode(":classical_building:")));
+                showMainMenu(session.get(), message);
             } else if (inputPrefix.equals(EmojiParser.parseToUnicode(":bust_in_silhouette:"))) {
                 session.get().setAttribute("teacher", inputText);
                 message.setText(outputMessages.get(SELECT_DAY));
@@ -119,18 +116,15 @@ public class TelegramBot extends TelegramLongPollingSessionBot {
                         .map(Group::getYearOfStudy).distinct().sorted()
                         .map(year->EmojiParser.parseToUnicode(year + "-й"))
                         .collect(Collectors.toList());
-                message.setReplyMarkup(keyboardFactory.makeResizableKeyboard(years, 6));
+                message.setReplyMarkup(keyboardFactory.makeResizableKeyboard(years));
             } else if (inputPrefix.equals(EmojiParser.parseToUnicode(":spiral_calendar_pad:")) && inputText.equals("Розклад викладача")) {
                 message.setText("Оберіть викладача або введіть його прізвище");
                 List<String> teacherNames = timetableService
                         .findTeacherByDepartmentName(session.get().getAttribute(DEPARTMENT_ATTRIBUTE).toString())
                         .stream().limit(30).map(Teacher::getName).collect(Collectors.toList());
-                message.setReplyMarkup(keyboardFactory.makeKeyboard(teacherNames, EmojiParser.parseToUnicode(":bust_in_silhouette:")));
+                message.setReplyMarkup(keyboardFactory.makeKeyboard(teacherNames, EmojiParser.parseToUnicode(":bust_in_silhouette:"), true));
             } else if (inputPrefix.equals("\u2B05")) {
-                removeSessionAttributes(session.get());
-                message.setText(outputMessages.get(SELECT_DEPARTMENT));
-                List<String> departments = timetableService.findAllDepartments().stream().map(Department::getName).collect(Collectors.toList());
-                message.setReplyMarkup(keyboardFactory.makeKeyboard(departments, EmojiParser.parseToUnicode(":classical_building:")));
+                showMainMenu(session.get(), message);
             } else if (inputText.matches("^[1-6]-й")) {
                 int year = (int)update.getMessage().getText().charAt(0)-48;
                 String departmentName = session.get().getAttribute(DEPARTMENT_ATTRIBUTE).toString();
@@ -138,7 +132,7 @@ public class TelegramBot extends TelegramLongPollingSessionBot {
                 List<String> groups = timetableService.findGroupsByDepartmentNameAndYearOfStudy(departmentName, year).stream()
                         .map(Group::getName)
                         .collect(Collectors.toList());
-                message.setReplyMarkup(keyboardFactory.makeResizableKeyboard(groups, EmojiParser.parseToUnicode(":busts_in_silhouette:"), 4));
+                message.setReplyMarkup(keyboardFactory.makeResizableKeyboard(groups, EmojiParser.parseToUnicode(":busts_in_silhouette:")));
             } else if (inputPrefix.equals(EmojiParser.parseToUnicode(":busts_in_silhouette:"))) {
                 session.get().setAttribute(GROUP_ATTRIBUTE, inputText);
                 message.setText(outputMessages.get(SELECT_DAY));
@@ -147,7 +141,7 @@ public class TelegramBot extends TelegramLongPollingSessionBot {
                 rememberDepartment(inputText, session.get());
                 message.setText(outputMessages.get(SELECT_DEPARTMENT));
                 List<String> buttons = Arrays.asList("Розклад груп","Розклад викладача");
-                message.setReplyMarkup(keyboardFactory.makeKeyboard(buttons, EmojiParser.parseToUnicode(":spiral_calendar_pad:")));
+                message.setReplyMarkup(keyboardFactory.makeKeyboard(buttons, EmojiParser.parseToUnicode(":spiral_calendar_pad:"), true));
             }
             message.setChatId(update.getMessage().getChatId());
             send(message);
@@ -177,6 +171,13 @@ public class TelegramBot extends TelegramLongPollingSessionBot {
         message.setReplyMarkup(new ReplyKeyboardRemove());
         message.setChatId(chatId);
         send(message);
+    }
+
+    private void showMainMenu(Session session, SendMessage message) {
+        removeSessionAttributes(session);
+        message.setText(outputMessages.get(SELECT_DEPARTMENT));
+        List<String> departments = timetableService.findAllDepartments().stream().map(Department::getName).collect(Collectors.toList());
+        message.setReplyMarkup(keyboardFactory.makeKeyboard(departments, EmojiParser.parseToUnicode(":classical_building:")));
     }
 
     private void removeSessionAttributes(Session session) {

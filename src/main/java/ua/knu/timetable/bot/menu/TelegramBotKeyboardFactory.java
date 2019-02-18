@@ -16,14 +16,14 @@ public class TelegramBotKeyboardFactory implements KeyboardFactory<ReplyKeyboard
     }
 
     @Override
-    public ReplyKeyboard makeResizableKeyboard(Collection<String> buttons, int size) {
-        return makeResizableKeyboard(buttons, "", size);
+    public ReplyKeyboard makeResizableKeyboard(Collection<String> buttons) {
+        return makeResizableKeyboard(buttons, "");
     }
 
     @Override
-    public ReplyKeyboard makeResizableKeyboard(Collection<String> buttons, String icon, int size) {
+    public ReplyKeyboard makeResizableKeyboard(Collection<String> buttons, String icon) {
         return new KeyboardBuilder()
-                .setButtonPerLine(size)
+                .setAutoResize(true)
                 .setIcon(icon)
                 .setSupportButtons(true)
                 .setButtonNames(buttons)
@@ -32,10 +32,15 @@ public class TelegramBotKeyboardFactory implements KeyboardFactory<ReplyKeyboard
 
     @Override
     public ReplyKeyboard makeKeyboard(List<String> buttonNames, String icon) {
+        return makeKeyboard(buttonNames, icon, false);
+    }
+
+    @Override
+    public ReplyKeyboard makeKeyboard(List<String> buttonNames, String icon, boolean includeSupportButtons) {
         return new KeyboardBuilder()
                 .setFullSizeButtons(buttonNames)
+                .setSupportButtons(includeSupportButtons)
                 .setIcon(icon)
-                .setSupportButtons(true)
                 .build();
     }
 }

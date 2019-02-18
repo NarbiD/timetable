@@ -12,13 +12,19 @@ import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-public class KeyboardBuilder {
-    private Collection<String> buttonNames;
-    private Collection<String> fullSizeButtons;
+class KeyboardBuilder {
+    private List<String> buttonNames;
+    private List<String> fullSizeButtons;
     private String icon;
     private int buttonPerLine;
+    private boolean autoResize;
     private boolean supportButtons;
     private static Properties defaultButtons;
+
+    KeyboardBuilder() {
+        buttonNames = new ArrayList<>();
+        fullSizeButtons = new ArrayList<>();
+    }
 
     static {
         final String absolutePath = new File("").getAbsolutePath();
@@ -32,33 +38,38 @@ public class KeyboardBuilder {
         }
     }
 
-    public KeyboardBuilder setButtonPerLine(int buttonPerLine) {
+    KeyboardBuilder setButtonPerLine(int buttonPerLine) {
         this.buttonPerLine = buttonPerLine;
         return this;
     }
 
-    public KeyboardBuilder setSupportButtons(boolean supportButtons) {
+    public KeyboardBuilder setAutoResize(boolean autoResize) {
+        this.autoResize = autoResize;
+        return this;
+    }
+
+    KeyboardBuilder setSupportButtons(boolean supportButtons) {
         this.supportButtons = supportButtons;
         return this;
     }
 
-    public KeyboardBuilder setButtonNames(Collection<String> buttonNames) {
-        this.buttonNames = buttonNames;
+    KeyboardBuilder setButtonNames(Collection<String> buttonNames) {
+        this.buttonNames.addAll(buttonNames);
         return this;
     }
 
-    public KeyboardBuilder setFullSizeButtons(List<String> fullSizeButtons) {
-        this.fullSizeButtons = fullSizeButtons;
+    KeyboardBuilder setFullSizeButtons(Collection<String> fullSizeButtons) {
+        this.fullSizeButtons.addAll(fullSizeButtons);
         return this;
     }
 
-    public KeyboardBuilder setIcon(String icon) {
+    KeyboardBuilder setIcon(String icon) {
         this.icon = icon;
         return this;
     }
 
 
-    public ReplyKeyboardMarkup build() {
+    ReplyKeyboardMarkup build() {
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
         replyKeyboardMarkup.setResizeKeyboard(true);
         replyKeyboardMarkup.setOneTimeKeyboard(false);
@@ -68,11 +79,12 @@ public class KeyboardBuilder {
         final String tag = this.icon!=null ? this.icon+"  " : "";
         if (this.buttonNames != null) {
             buttonNames = buttonNames.stream().map(name->tag+name).collect(Collectors.toList());
-            keyboard.addAll(makeRows(new ArrayList<>(this.buttonNames), buttonPerLine==0?1:buttonPerLine));
+            buttonPerLine = autoResize ? dividerSelection(buttonNames.size()) : buttonPerLine;
+            keyboard.addAll(makeRows(buttonNames, buttonPerLine, true));
         }
         if (this.fullSizeButtons != null) {
             fullSizeButtons = fullSizeButtons.stream().map(name->tag+name).collect(Collectors.toList());
-            keyboard.addAll(makeRows(new ArrayList<>(fullSizeButtons), 1));
+            keyboard.addAll(makeRows(fullSizeButtons, 1, false));
         }
         if (this.supportButtons) {
             keyboard.add(supportButtons());
@@ -80,13 +92,24 @@ public class KeyboardBuilder {
         return replyKeyboardMarkup.setKeyboard(keyboard);
     }
 
-    private List<KeyboardRow> makeRows(List<String> buttonNames, int buttonPerLine) {
+    private int dividerSelection(int numberOfButtons) {
+        if (numberOfButtons%4 == 0 || (numberOfButtons+1)%4 == 0) {
+            return 4;
+        } else {
+            return 3;
+        }
+    }
+
+    private static List<KeyboardRow> makeRows(List<String> buttonNames, int buttonPerLine, boolean joinLastButton) {
         List<KeyboardRow> keyboard = new ArrayList<>();
         if (buttonNames != null) {
-            for (int i = 0; i < buttonNames.size();) {
+            int keyboardSize = buttonNames.size();
+            for (int i = 0; i < keyboardSize;) {
                 KeyboardRow keyboardRow = new KeyboardRow();
                 keyboardRow.add(buttonNames.get(i++));
-                while(i%buttonPerLine != 0 && i < buttonNames.size()) {
+
+                boolean lastButtonCondition = joinLastButton && i == (keyboardSize - 1);
+                while((i%buttonPerLine != 0 || lastButtonCondition) && i < keyboardSize) {
                     keyboardRow.add(buttonNames.get(i++));
                 }
                 keyboard.add(keyboardRow);
