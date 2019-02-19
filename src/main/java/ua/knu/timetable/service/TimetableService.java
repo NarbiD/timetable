@@ -3,7 +3,6 @@ package ua.knu.timetable.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ua.knu.timetable.model.*;
-import ua.knu.timetable.repository.LessonRepository;
 
 import java.util.Arrays;
 import java.util.List;
@@ -11,14 +10,14 @@ import java.util.List;
 @Service
 public class TimetableService {
 
-    final private LessonRepository lessonRepository;
     final private DepartmentService departmentService;
     final private GroupService groupService;
     final private TeacherService teacherService;
+    final private LessonService lessonService;
 
     @Autowired
-    public TimetableService(LessonRepository lessonRepository, DepartmentService departmentService, GroupService groupService, TeacherService teacherService) {
-        this.lessonRepository = lessonRepository;
+    public TimetableService(LessonService lessonService, DepartmentService departmentService, GroupService groupService, TeacherService teacherService) {
+        this.lessonService = lessonService;
         this.departmentService = departmentService;
         this.groupService = groupService;
         this.teacherService = teacherService;
@@ -33,36 +32,30 @@ public class TimetableService {
     }
 
     public List<Lesson> findLessonByDepartmentAndGroup(String departmentName, String groupName) {
-        Department department = departmentService.getDepartmentByName(departmentName);
-        Group group = groupService.getGroupByNameAndDepartmentName(groupName, departmentName);
-        return lessonRepository.findLessonsByDepartmentAndGroup(department, group);
+        return lessonService.findByDepartmentAndGroup(departmentName, groupName);
     }
 
     public List<Lesson> findLessonByDepartmentAndGroupAndDay(String departmentName, String groupName, String day) {
-        Department department = departmentService.getDepartmentByName(departmentName);
-        Group group = groupService.getGroupByNameAndDepartmentName(groupName, departmentName);
-        return lessonRepository.findLessonsByDepartmentAndGroupAndDay(department, group, Day.valueOf(day));
+        return lessonService.findByDepartmentAndGroupAndDay(departmentName, groupName, day);
     }
 
     public List<Lesson> findLessonByDepartmentAndTeacherAndDay(String departmentName, String teacherName, String day) {
-        Department department = departmentService.getDepartmentByName(departmentName);
-        Teacher teacher = teacherService.findTeacherByNameAndDepartmentName(teacherName, departmentName).get(0); // TODO: fix it
-        return lessonRepository.findLessonsByDepartmentAndTeacherAndDay(department, teacher, Day.valueOf(day));
+        return lessonService.findByDepartmentAndTeacherAndDay(departmentName, teacherName, day);
     }
 
-    public List<Group> findGroupsByDepartmentName(String departmentName) {
-        return groupService.findAllByDepartmentName(departmentName);
+    public List<Group> findGroupsByDepartment(String departmentName) {
+        return groupService.findByDepartment(departmentName);
     }
 
-    public List<Group> findGroupsByDepartmentNameAndYearOfStudy(String departmentName, Integer yearOfStudy) {
-        return groupService.findAllByYearOfStudy(departmentName, yearOfStudy);
+    public List<Group> findGroupsByDepartmentAndYearOfStudy(String departmentName, Integer yearOfStudy) {
+        return groupService.findByYearOfStudy(departmentName, yearOfStudy);
     }
 
-    public List<Teacher> findTeacherByNameAndDepartmentName(String name, String departmentName) {
-        return teacherService.findTeacherByNameAndDepartmentName(name, departmentName);
+    public List<Teacher> findTeacherByNameAndDepartment(String name, String departmentName) {
+        return teacherService.findByNameAndDepartment(name, departmentName);
     }
 
-    public List<Teacher> findTeacherByDepartmentName(String departmentName) {
-        return teacherService.findByDepartmentName(departmentName);
+    public List<Teacher> findTeacherByDepartment(String departmentName) {
+        return teacherService.findByDepartment(departmentName);
     }
 }

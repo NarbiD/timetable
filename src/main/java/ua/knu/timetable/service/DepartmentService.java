@@ -17,8 +17,8 @@ public class DepartmentService {
         this.departmentRepository = departmentRepository;
     }
 
-    public Department getDepartmentByName(String name) {
-        return departmentRepository.getDepartmentByName(name);
+    public Department findByName(String name) {
+        return departmentRepository.findByName(name);
     }
 
     public List<Department> findAll() {

@@ -112,7 +112,7 @@ public class TelegramBot extends TelegramLongPollingSessionBot {
             } else if (inputPrefix.equals(EmojiParser.parseToUnicode(":spiral_calendar_pad:")) && inputText.equals("Розклад груп")) {
                 message.setText(outputMessages.get(SELECT_YEAR));
                 String departmentName = session.get().getAttribute(DEPARTMENT_ATTRIBUTE).toString();
-                List<String> years = timetableService.findGroupsByDepartmentName(departmentName).stream()
+                List<String> years = timetableService.findGroupsByDepartment(departmentName).stream()
                         .map(Group::getYearOfStudy).distinct().sorted()
                         .map(year->EmojiParser.parseToUnicode(year + "-й"))
                         .collect(Collectors.toList());
@@ -120,7 +120,7 @@ public class TelegramBot extends TelegramLongPollingSessionBot {
             } else if (inputPrefix.equals(EmojiParser.parseToUnicode(":spiral_calendar_pad:")) && inputText.equals("Розклад викладача")) {
                 message.setText("Оберіть викладача або введіть його прізвище");
                 List<String> teacherNames = timetableService
-                        .findTeacherByDepartmentName(session.get().getAttribute(DEPARTMENT_ATTRIBUTE).toString())
+                        .findTeacherByDepartment(session.get().getAttribute(DEPARTMENT_ATTRIBUTE).toString())
                         .stream().limit(30).map(Teacher::getName).collect(Collectors.toList());
                 message.setReplyMarkup(keyboardFactory.makeKeyboard(teacherNames, EmojiParser.parseToUnicode(":bust_in_silhouette:"), true));
             } else if (inputPrefix.equals("\u2B05")) {
@@ -129,7 +129,7 @@ public class TelegramBot extends TelegramLongPollingSessionBot {
                 int year = (int)update.getMessage().getText().charAt(0)-48;
                 String departmentName = session.get().getAttribute(DEPARTMENT_ATTRIBUTE).toString();
                 message.setText(outputMessages.get(SELECT_GROUP));
-                List<String> groups = timetableService.findGroupsByDepartmentNameAndYearOfStudy(departmentName, year).stream()
+                List<String> groups = timetableService.findGroupsByDepartmentAndYearOfStudy(departmentName, year).stream()
                         .map(Group::getName)
                         .collect(Collectors.toList());
                 message.setReplyMarkup(keyboardFactory.makeResizableKeyboard(groups, EmojiParser.parseToUnicode(":busts_in_silhouette:")));

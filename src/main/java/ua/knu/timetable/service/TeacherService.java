@@ -15,11 +15,11 @@ public class TeacherService {
         this.teacherRepository = teacherRepository;
     }
 
-    List<Teacher> findTeacherByNameAndDepartmentName(String name, String departmentName) {
+    List<Teacher> findByNameAndDepartment(String name, String departmentName) {
         return teacherRepository.findByNameContainingAndDepartment_Name(name, departmentName);
     }
 
-    List<Teacher> findByDepartmentName(String departmentName) {
+    List<Teacher> findByDepartment(String departmentName) {
         return teacherRepository.findByDepartment_Name(departmentName);
     }
 }

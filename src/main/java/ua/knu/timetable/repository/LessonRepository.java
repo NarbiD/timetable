@@ -6,9 +6,9 @@ import ua.knu.timetable.model.*;
 import java.util.List;
 
 public interface LessonRepository extends JpaRepository<Lesson, Long> {
-    List<Lesson> findLessonsByDepartmentAndGroup(Department department, Group group);
-    List<Lesson> findLessonsByDepartmentAndGroupAndDay(Department department, Group group, Day day);
-    List<Lesson> findLessonsByDepartmentAndTeacher(Department department, Teacher teacher);
-    List<Lesson> findLessonsByDepartmentAndTeacherAndDay(Department department, Teacher teacher, Day day);
+    List<Lesson> findLessonsByDepartmentNameAndGroupName(String department, String group);
+    List<Lesson> findLessonsByDepartmentNameAndGroupNameAndDay(String department, String group, Day day);
+    List<Lesson> findLessonsByDepartmentNameAndTeacherName(String department, String teacher);
+    List<Lesson> findLessonsByDepartmentNameAndTeacherNameAndDay(String department, String teacher, Day day);
 
 }

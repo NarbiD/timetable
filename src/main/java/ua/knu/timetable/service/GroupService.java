@@ -16,16 +16,16 @@ public class GroupService {
         this.groupRepository = groupRepository;
     }
 
-    public Group getGroupByNameAndDepartmentName(String name, String departmentName) {
+    public Group findByNameAndDepartment(String name, String departmentName) {
         return groupRepository.findByNameAndDepartment_Name(name, departmentName);
     }
 
-    public List<Group> findAllByYearOfStudy(String departmentName, Integer yearOfStudy) {
-        return groupRepository.findAllByDepartment_NameAndYearOfStudyOrderByName(departmentName, yearOfStudy);
+    public List<Group> findByYearOfStudy(String departmentName, Integer yearOfStudy) {
+        return groupRepository.findByDepartment_NameAndYearOfStudyOrderByName(departmentName, yearOfStudy);
     }
 
-    public List<Group> findAllByDepartmentName(String departmentName) {
-        return groupRepository.findAllByDepartment_NameOrderByName(departmentName);
+    public List<Group> findByDepartment(String departmentName) {
+        return groupRepository.findByDepartment_NameOrderByName(departmentName);
     }
 
 

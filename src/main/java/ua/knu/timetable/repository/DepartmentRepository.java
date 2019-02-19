@@ -6,6 +6,6 @@ import ua.knu.timetable.model.Department;
 import java.util.List;
 
 public interface DepartmentRepository extends JpaRepository<Department, Long> {
-    Department getDepartmentByName(String name);
+    Department findByName(String name);
     List<Department> findAll();
 }
