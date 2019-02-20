@@ -230,8 +230,7 @@ public class TelegramBot extends TelegramLongPollingSessionBot {
             ob.setLessons(lessons)
                     .includeSubject(true)
                     .includeSubgroup(true)
-                    .includeAudience(true)
-                    .includeTeacher(true);
+                    .includeAudience(true);
             if (callbackPrefix.equals(CALLBACK_PREFIX_DAY_SELECTION)) {
                 ob.includeTeacher(true);
             } else if (callbackPrefix.equals(CALLBACK_PREFIX_DAY_SELECTION+"teacher")) {

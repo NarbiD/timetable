@@ -1,15 +1,50 @@
 package ua.knu.timetable.bot;
 
 import com.vdurmont.emoji.EmojiParser;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import ua.knu.timetable.model.Group;
 import ua.knu.timetable.model.Lesson;
 
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.*;
 
-public class OutputBuilder {
+import static ua.knu.timetable.bot.OutputBuilder.OutputText.*;
+
+class OutputBuilder {
+
+    private static Properties textProps;
+
+    static {
+        final String absolutePath = new File("").getAbsolutePath();
+        final String pathToProperties = "/src/main/resources/";
+
+        try (FileReader textPropertiesReader = new FileReader(
+                     new File(absolutePath + pathToProperties + "lang.properties"))){
+            textProps = new Properties();
+            textProps.load(textPropertiesReader);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     enum OutputBit {
         SUBJECT, AUDIENCE, TEACHER, GROUP, SUBGROUP
+    }
+
+    @AllArgsConstructor
+    @Getter
+    enum OutputText {
+        COMMENT(textProps.getProperty("ua.comment")),
+        EVEN(textProps.getProperty("ua.even")),
+        ODD(textProps.getProperty("ua.odd")),
+        SUBGROUP(textProps.getProperty("ua.subgroup")),
+        NOW(textProps.getProperty("ua.now"));
+
+        private String text;
     }
 
     private final static String[] EMOJI_NUMBERS = {":zero:", ":one:", ":two:", ":three:", ":four:",
@@ -81,9 +116,9 @@ public class OutputBuilder {
             removeDuplicates(lessons);
 
             for (Lesson lesson : lessons) {
-                String subgroup = lesson.getSubgroup().equals("0") ? "" : "(підгрупа "+lesson.getSubgroup()+")";
+                String subgroup = lesson.getSubgroup().equals("0") ? "" : SUBGROUP+" "+lesson.getSubgroup();
                 String week = lesson.getWeek().equals("0") ? "" :
-                        lesson.getWeek().equals("2") ? "\n<i>(парний тиждень)</i>" : "\n<i>(непарний тиждень)</i>";
+                        lesson.getWeek().equals("2") ? ODD.getText() : EVEN.getText();
 
                 String numberEmoji = EMOJI_NUMBERS[lesson.getClassTime().getLessonNumber()] + " ";
                 numberEmoji = (timetable.toString().contains(numberEmoji))?"      ":numberEmoji;
@@ -93,15 +128,6 @@ public class OutputBuilder {
                     timetable.append("<b>").append(lesson.getSubject().getName())
                             .append(" (").append(lesson.getFormat()).append(")")
                             .append("</b>");
-                }
-                if (this.includes.get(OutputBit.GROUP)) {
-                    timetable.append("\n")
-                            .append("Група ")
-                            .append(lesson.getGroup().getName());
-                }
-                if (this.includes.get(OutputBit.SUBGROUP) && !subgroup.equals("")) {
-                    timetable.append(this.includes.get(OutputBit.GROUP) ? " " : "\n")
-                            .append(subgroup);
                 }
                 timetable.append(week);
                 if (this.includes.get(OutputBit.AUDIENCE)) {
@@ -114,13 +140,26 @@ public class OutputBuilder {
                             .append(lesson.getTeacher().getName())
                             .append("</i>");
                 }
+                if (this.includes.get(OutputBit.GROUP)) {
+                    timetable.append("<i>").append(" | ")
+                            .append("Група ")
+                            .append(lesson.getGroup().getName())
+                            .append("</i>");
+                }
+                if (this.includes.get(OutputBit.SUBGROUP) && !subgroup.equals("")) {
+                    timetable.append("<i>").append(" | ")
+                            .append(subgroup)
+                            .append("</i>");
+                }
             }
-            if (timetable.toString().contains("парний тиждень")) {
-                this.text = "Зараз " + (WeekParityChecker.INSTANCE.checkParity(new Date()) ? "" : "не") + "парний тиждень";
+            if (timetable.toString().contains(EVEN.getText()) || timetable.toString().contains(ODD.getText())) {
+                this.text = NOW.getText() + " " +
+                        (WeekParityChecker.INSTANCE.checkParity(new Date()) ? ODD.getText() : EVEN.getText());
             }
         }
         if (text!=null && !text.equals("")) {
-            timetable.append("\n\n<i>Примітка: ")
+            timetable.append("\n\n<i>")
+                    .append(COMMENT.getText()).append(": ")
                     .append(text)
                     .append("</i>");
         }
