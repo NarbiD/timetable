@@ -72,8 +72,8 @@ public class TelegramBot extends TelegramLongPollingSessionBot {
             langProperties.load(langPropertiesReader);
             buttonsProperties.load(buttonsPropertiesReader);
         }
-        initOutputMessages("ua");
-        initDefaultButtons("ua");
+        initOutputMessages(LangCode.UA.getCode());
+        initDefaultButtons(LangCode.UA.getCode());
     }
 
     private void initOutputMessages(String langCode) {

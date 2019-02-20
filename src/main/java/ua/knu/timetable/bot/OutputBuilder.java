@@ -38,11 +38,13 @@ class OutputBuilder {
     @AllArgsConstructor
     @Getter
     enum OutputText {
-        COMMENT(textProps.getProperty("ua.comment")),
-        EVEN(textProps.getProperty("ua.even")),
-        ODD(textProps.getProperty("ua.odd")),
-        SUBGROUP(textProps.getProperty("ua.subgroup")),
-        NOW(textProps.getProperty("ua.now"));
+        COMMENT(textProps.getProperty(LangCode.UA.getCode()+".comment")),
+        EVEN(textProps.getProperty(LangCode.UA.getCode()+".even")),
+        ODD(textProps.getProperty(LangCode.UA.getCode()+".odd")),
+        SUBGROUP(textProps.getProperty(LangCode.UA.getCode()+".subgroup")),
+        GROUP(textProps.getProperty(LangCode.UA.getCode()+".group")),
+        AUDIENCE(textProps.getProperty(LangCode.UA.getCode()+".audience")),
+        NOW(textProps.getProperty(LangCode.UA.getCode()+".now"));
 
         private String text;
     }
@@ -116,7 +118,7 @@ class OutputBuilder {
             removeDuplicates(lessons);
 
             for (Lesson lesson : lessons) {
-                String subgroup = lesson.getSubgroup().equals("0") ? "" : SUBGROUP+" "+lesson.getSubgroup();
+                String subgroup = lesson.getSubgroup().equals("0") ? "" : SUBGROUP.getText()+" "+lesson.getSubgroup();
                 String week = lesson.getWeek().equals("0") ? "" :
                         lesson.getWeek().equals("2") ? ODD.getText() : EVEN.getText();
 
@@ -132,7 +134,8 @@ class OutputBuilder {
                 timetable.append(week);
                 if (this.includes.get(OutputBit.AUDIENCE)) {
                     timetable.append("\n<i>")
-                            .append("Ауд. ").append(lesson.getAudience().getName())
+                            .append(AUDIENCE.getText()).append(" ")
+                            .append(lesson.getAudience().getName())
                             .append("</i>");
                 }
                 if (this.includes.get(OutputBit.TEACHER)) {
@@ -142,7 +145,7 @@ class OutputBuilder {
                 }
                 if (this.includes.get(OutputBit.GROUP)) {
                     timetable.append("<i>").append(" | ")
-                            .append("Група ")
+                            .append(GROUP.getText()).append(" ")
                             .append(lesson.getGroup().getName())
                             .append("</i>");
                 }

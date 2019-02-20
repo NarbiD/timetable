@@ -21,11 +21,6 @@ class KeyboardBuilder {
     private boolean supportButtons;
     private static Properties defaultButtons;
 
-    KeyboardBuilder() {
-        buttonNames = new ArrayList<>();
-        fullSizeButtons = new ArrayList<>();
-    }
-
     static {
         final String absolutePath = new File("").getAbsolutePath();
         final String pathToProperties = "/src/main/resources/";
@@ -36,6 +31,11 @@ class KeyboardBuilder {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    KeyboardBuilder() {
+        buttonNames = new ArrayList<>();
+        fullSizeButtons = new ArrayList<>();
     }
 
     KeyboardBuilder setButtonPerLine(int buttonPerLine) {
